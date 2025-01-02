@@ -11,6 +11,7 @@ struct iMusicPlayerApp: App {
             ContentView()
                 .environmentObject(playerService)
                 .environmentObject(songService)
+                .withTheme()
         }
     }
 } 
