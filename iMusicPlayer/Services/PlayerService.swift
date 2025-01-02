@@ -5,26 +5,40 @@ import MediaPlayer
 class PlayerService: ObservableObject {
     static let shared = PlayerService()
     
-    @Published var currentSong: Song?
-    @Published var isPlaying: Bool = false
-    @Published var currentTime: TimeInterval = 0
-    @Published var duration: TimeInterval = 0
+    @Published private(set) var currentSong: Song?
+    @Published private(set) var isPlaying: Bool = false
+    @Published private(set) var currentTime: TimeInterval = 0
+    @Published private(set) var duration: TimeInterval = 0
     
-    private var player: AVPlayer?
-    private var songService: SongService
+    private var player: AVPlayer? {
+        willSet {
+            if let oldPlayer = player {
+                oldPlayer.pause()
+                if let timeObserver = timeObserver {
+                    oldPlayer.removeTimeObserver(timeObserver)
+                }
+            }
+        }
+    }
+    
+    private weak var songService: SongService?
     private var timeObserver: Any?
     private var itemObserver: NSKeyValueObservation?
     private var lastInfoUpdateTime: TimeInterval = 0
-    private static let minimumUpdateInterval: TimeInterval = 5.0  // 恢复到5秒
+    private static let minimumUpdateInterval: TimeInterval = 5.0
+    private var notificationObservers: [Any] = []
     
     private init(songService: SongService = .shared) {
         self.songService = songService
         setupAudioSession()
+        #if os(iOS)
         setupRemoteControls()
+        #endif
         setupNotifications()
     }
     
     private func setupAudioSession() {
+        #if os(iOS)
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setActive(false)
@@ -35,9 +49,14 @@ class PlayerService: ObservableObject {
         } catch {
             print("设置音频会话失败: \(error)")
         }
+        #else
+        // macOS 不需要特殊的音频会话设置
+        setupNowPlaying()
+        #endif
     }
     
     private func setupRemoteControls() {
+        #if os(iOS)
         let commandCenter = MPRemoteCommandCenter.shared()
         
         // 启用所有控制命令
@@ -86,19 +105,35 @@ class PlayerService: ObservableObject {
             self.updateNowPlayingInfo(force: true)
             return .success
         }
+        #endif
     }
     
     private func setupNotifications() {
+        #if os(iOS)
         // 处理音频中断
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleInterruption),
-            name: AVAudioSession.interruptionNotification,
-            object: nil
-        )
+        let observer = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            self?.handleInterruption(notification)
+        }
+        notificationObservers.append(observer)
+        #endif
+        
+        // 处理播放完成通知（所有平台通用）
+        let playbackObserver = NotificationCenter.default.addObserver(
+            forName: AVPlayerItem.didPlayToEndTimeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.playNext()
+        }
+        notificationObservers.append(playbackObserver)
     }
     
-    @objc private func handleInterruption(_ notification: Notification) {
+    #if os(iOS)
+    private func handleInterruption(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
               let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
@@ -118,6 +153,7 @@ class PlayerService: ObservableObject {
             break
         }
     }
+    #endif
     
     private func setupNowPlaying() {
         var nowPlayingInfo = [String: Any]()
@@ -166,35 +202,29 @@ class PlayerService: ObservableObject {
         }
         
         stop()
-        
-        let playerItem = AVPlayerItem(url: song.url)
-        player = AVPlayer(playerItem: playerItem)
-        
-        // 使用5秒的更新间隔
-        if let player = player {
-            let interval = CMTime(seconds: 5.0, preferredTimescale: 1)
-            timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-                guard let self = self else { return }
-                self.updateNowPlayingInfo()
-            }
-            
-            // 监听播放状态
-            itemObserver = playerItem.observe(\.status) { [weak self] item, _ in
-                if item.status == .readyToPlay {
-                    self?.updateNowPlayingInfo(force: true)
-                }
-            }
-        }
-        
+        setupPlayer(with: song.url)
         currentSong = song
         play()
+    }
+    
+    private func setupPlayer(with url: URL) {
+        let asset = AVAsset(url: url)
+        let playerItem = AVPlayerItem(asset: asset, automaticallyLoadedAssetKeys: ["playable", "duration"])
+        playerItem.preferredForwardBufferDuration = 10
         
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(playerDidFinishPlaying),
-            name: .AVPlayerItemDidPlayToEndTime,
-            object: playerItem
-        )
+        player = AVPlayer(playerItem: playerItem)
+        player?.automaticallyWaitsToMinimizeStalling = true
+        
+        let interval = CMTime(seconds: 5.0, preferredTimescale: 1)
+        timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
+            self?.updateNowPlayingInfo()
+        }
+        
+        itemObserver = playerItem.observe(\.status) { [weak self] item, _ in
+            if item.status == .readyToPlay {
+                self?.updateNowPlayingInfo(force: true)
+            }
+        }
     }
     
     func play() {
@@ -202,11 +232,13 @@ class PlayerService: ObservableObject {
         isPlaying = true
         updateNowPlayingInfo(force: true)
         
+        #if os(iOS)
         do {
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             print("激活音频会话失败: \(error)")
         }
+        #endif
     }
     
     func pause() {
@@ -226,8 +258,6 @@ class PlayerService: ObservableObject {
         itemObserver?.invalidate()
         itemObserver = nil
         
-        NotificationCenter.default.removeObserver(self)
-        
         player = nil
         isPlaying = false
         currentTime = 0
@@ -237,7 +267,7 @@ class PlayerService: ObservableObject {
     
     func playNext() {
         guard let currentSong = currentSong,
-              let nextSong = songService.getNextSong(after: currentSong) else {
+              let nextSong = songService?.getNextSong(after: currentSong) else {
             return
         }
         playSong(nextSong)
@@ -245,14 +275,10 @@ class PlayerService: ObservableObject {
     
     func playPrevious() {
         guard let currentSong = currentSong,
-              let previousSong = songService.getPreviousSong(before: currentSong) else {
+              let previousSong = songService?.getPreviousSong(before: currentSong) else {
             return
         }
         playSong(previousSong)
-    }
-    
-    @objc private func playerDidFinishPlaying() {
-        playNext()
     }
     
     func togglePlayPause() {
@@ -260,13 +286,24 @@ class PlayerService: ObservableObject {
             pause()
         } else if currentSong != nil {
             play()
-        } else if let firstSong = songService.songs.first {
+        } else if let firstSong = songService?.songs.first {
             playSong(firstSong)
         }
     }
     
     deinit {
+        cleanup()
+    }
+    
+    private func cleanup() {
         stop()
+        notificationObservers.forEach {
+            NotificationCenter.default.removeObserver($0)
+        }
+        notificationObservers.removeAll()
+        
+        #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false)
+        #endif
     }
 }
