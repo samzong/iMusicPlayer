@@ -10,7 +10,7 @@ import UIKit
 
 struct Song: Identifiable, Equatable {
     let id = UUID()
-    let title: String
+    var title: String
     let url: URL
     
     // 可选字段，后续完善

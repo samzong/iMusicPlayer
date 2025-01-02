@@ -97,33 +97,20 @@ struct PlayerView: View {
             }
             .padding()
             
-            // 音量控制
-            HStack {
-                Image(systemName: "speaker.fill")
-                    .foregroundColor(.secondary)
-                Slider(value: Binding(
-                    get: { Double(playerManager.volume) },
-                    set: { playerManager.volume = Float($0) }
-                ), in: 0...1)
-                Image(systemName: "speaker.wave.2.fill")
-                    .foregroundColor(.secondary)
+            // 播放模式
+            Button(action: {
+                playerManager.togglePlayMode()
+            }) {
+                Image(systemName: playerManager.playMode.iconName)
+                    .font(.title2)
+                    .padding(8)
+                    .background(
+                        Circle()
+                            .fill(Color.blue.opacity(0.1))
+                            .frame(width: 40, height: 40)
+                    )
             }
-            .padding(.horizontal)
-            
-            // 播放模式和更多选项
-            HStack(spacing: 40) {
-                Button(action: {}) {
-                    Image(systemName: "shuffle")
-                }
-                Button(action: {}) {
-                    Image(systemName: "repeat")
-                }
-                Button(action: {}) {
-                    Image(systemName: "list.bullet")
-                }
-            }
-            .font(.title3)
-            .foregroundColor(.secondary)
+            .foregroundColor(.blue)
             
             Spacer()
         }
