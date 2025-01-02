@@ -19,13 +19,7 @@ struct ContentView: View {
             SongListView()
                 .tabItem {
                     Image(systemName: "music.note.list")
-                    Text("歌曲列表")
-                }
-            
-            DownloadView()
-                .tabItem {
-                    Image(systemName: "square.and.arrow.down")
-                    Text("下载")
+                    Text("音乐库")
                 }
         }
     }
