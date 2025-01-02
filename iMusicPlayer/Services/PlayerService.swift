@@ -15,11 +15,27 @@ class PlayerService: ObservableObject {
     private var songService: SongService
     private var timeObserver: Any?
     private var cancellables = Set<AnyCancellable>()
+    private var playerItemObserver: NSKeyValueObservation?
     
     init(songService: SongService = .shared) {
         self.songService = songService
         setupAudioSession()
         setupRemoteTransportControls()
+        
+        // 监听音乐库变化
+        songService.$songs
+            .sink { [weak self] songs in
+                // 如果当前歌曲被删除，自动切换到第一首
+                if let currentSong = self?.currentSong,
+                   !songs.contains(where: { $0.id == currentSong.id }) {
+                    if let firstSong = songs.first {
+                        self?.playSong(firstSong)
+                    } else {
+                        self?.stop()
+                    }
+                }
+            }
+            .store(in: &cancellables)
     }
     
     private func setupAudioSession() {
@@ -118,12 +134,24 @@ class PlayerService: ObservableObject {
         let playerItem = AVPlayerItem(url: song.url)
         player = AVPlayer(playerItem: playerItem)
         
+        // 监听播放器状态
+        playerItemObserver = playerItem.observe(\.status) { [weak self] item, _ in
+            guard let self = self else { return }
+            if item.status == .readyToPlay {
+                // 更新时长
+                self.duration = item.duration.seconds
+                self.updateNowPlayingInfo()
+            }
+        }
+        
         // 设置时间观察器
         if let player = player {
             timeObserver = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { [weak self] time in
                 guard let self = self else { return }
                 self.currentTime = time.seconds
-                self.duration = player.currentItem?.duration.seconds ?? 0
+                if self.duration == 0 {
+                    self.duration = player.currentItem?.duration.seconds ?? 0
+                }
                 self.updateNowPlayingInfo()
             }
         }
@@ -157,6 +185,11 @@ class PlayerService: ObservableObject {
     
     func stop() {
         player?.pause()
+        playerItemObserver?.invalidate()
+        playerItemObserver = nil
+        if let timeObserver = timeObserver {
+            player?.removeTimeObserver(timeObserver)
+        }
         player = nil
         isPlaying = false
         currentTime = 0
@@ -184,10 +217,24 @@ class PlayerService: ObservableObject {
         playNext()
     }
     
+    func togglePlayPause() {
+        if isPlaying {
+            pause()
+        } else if currentSong != nil {
+            play()
+        } else {
+            // 如果没有正在播放的歌曲，播放第一首
+            if let firstSong = songService.songs.first {
+                playSong(firstSong)
+            }
+        }
+    }
+    
     deinit {
         if let timeObserver = timeObserver {
             player?.removeTimeObserver(timeObserver)
         }
+        playerItemObserver?.invalidate()
         NotificationCenter.default.removeObserver(self)
     }
 } 
