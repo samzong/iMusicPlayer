@@ -1,22 +1,17 @@
 import Foundation
-import UIKit
 
-struct Song: Identifiable, Equatable, Codable {
+struct Song: Identifiable, Codable, Equatable {
     let id: UUID
-    var title: String
-    let url: URL
+    let title: String
     
-    enum CodingKeys: String, CodingKey {
-        case id, title, url
+    var url: URL {
+        // 直接使用 Documents 目录，不创建子文件夹
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("\(title).mp3")
     }
     
-    init(id: UUID = UUID(), title: String, url: URL) {
+    init(id: UUID = UUID(), title: String) {
         self.id = id
         self.title = title
-        self.url = url
-    }
-    
-    static func == (lhs: Song, rhs: Song) -> Bool {
-        return lhs.id == rhs.id
     }
 } 

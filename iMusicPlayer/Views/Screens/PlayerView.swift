@@ -2,118 +2,57 @@ import SwiftUI
 
 struct PlayerView: View {
     @ObservedObject var viewModel: PlayerViewModel
-    @Environment(\.themeColors) var theme
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        ZStack {
-            // 背景渐变
-            theme.gradient
-                .ignoresSafeArea()
-            
-            // 音频波形背景
-            AudioWaveBackground(isPlaying: viewModel.isPlaying)
-                .opacity(0.3)
-                .blur(radius: 20)
-                .ignoresSafeArea()
-            
-            // 主要内容
-            VStack(spacing: 40) {
-                Spacer()
-                
-                // 唱片视图
-                RotatingDiscView(isPlaying: viewModel.isPlaying)
-                    .shadow(color: theme.accent.opacity(0.3), radius: 20, x: 0, y: 10)
-                    .overlay(
-                        Circle()
-                            .stroke(theme.accent.opacity(0.2), lineWidth: 1)
-                            .blur(radius: 3)
-                            .scaleEffect(1.02)
-                    )
-                
-                // 当前播放歌曲信息
-                VStack(spacing: 10) {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // 歌曲信息 (1/4 位置)
+                VStack {
                     if let currentSong = viewModel.currentSong {
                         Text(currentSong.title)
-                            .font(.title2)
+                            .font(.title)
                             .fontWeight(.semibold)
-                            .foregroundColor(.primary)
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                        
-                        // 播放进度
-                        VStack(spacing: 8) {
-                            // 进度条
-                            GeometryReader { geometry in
-                                ZStack(alignment: .leading) {
-                                    // 背景条
-                                    Rectangle()
-                                        .fill(theme.accent.opacity(0.2))
-                                        .frame(height: 4)
-                                        .cornerRadius(2)
-                                    
-                                    // 进度条
-                                    Rectangle()
-                                        .fill(theme.accent)
-                                        .frame(width: geometry.size.width * CGFloat(viewModel.currentTime / max(viewModel.duration, 1)), height: 4)
-                                        .cornerRadius(2)
-                                }
-                            }
-                            .frame(height: 4)
-                            
-                            // 时间标签
-                            HStack {
-                                Text(viewModel.formatTime(viewModel.currentTime))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Spacer()
-                                
-                                Text(viewModel.formatTime(viewModel.duration))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding(.horizontal)
                     } else {
                         Text("未播放")
-                            .font(.title2)
+                            .font(.title)
                             .foregroundColor(.secondary)
                     }
                 }
-                .frame(height: 100)  // 增加高度以容纳进度条
+                .frame(height: geometry.size.height / 4)
+                .frame(maxWidth: .infinity)
                 
+                // 播放控制 (居中位置)
                 Spacer()
+                    .frame(height: geometry.size.height / 8) // 调整到中心位置
                 
-                // 播放控制
-                HStack(spacing: 50) {
-                    // 上一首
+                HStack(spacing: 60) {
                     Button(action: viewModel.playPrevious) {
                         Image(systemName: "backward.fill")
-                            .font(.title)
-                            .foregroundColor(theme.accent)
-                            .shadow(color: theme.accent.opacity(0.3), radius: 5)
+                            .font(.system(size: 44))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                     
-                    // 播放/暂停
                     Button(action: viewModel.togglePlayPause) {
                         Image(systemName: viewModel.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.system(size: 70))
-                            .foregroundColor(theme.accent)
-                            .shadow(color: theme.accent.opacity(0.3), radius: 10)
+                            .font(.system(size: 88))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                     
-                    // 下一首
                     Button(action: viewModel.playNext) {
                         Image(systemName: "forward.fill")
-                            .font(.title)
-                            .foregroundColor(theme.accent)
-                            .shadow(color: theme.accent.opacity(0.3), radius: 5)
+                            .font(.system(size: 44))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
                     }
                 }
-                .padding(.bottom, 60)
+                
+                Spacer()
             }
             .padding()
         }
-        .withTheme()
+        .background(colorScheme == .dark ? Color.black : Color.white)
+        .edgesIgnoringSafeArea(.all)
     }
 } 
