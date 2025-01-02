@@ -106,6 +106,39 @@ struct DownloadView: View {
                 .frame(maxHeight: 200)
             }
             
+            // 跳过的歌曲
+            if !downloadManager.skippedSongs.isEmpty {
+                VStack(alignment: .leading) {
+                    HStack {
+                        Text("跳过的文件:")
+                            .font(.headline)
+                        Spacer()
+                        Text("\(downloadManager.skippedSongs.count) 首")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 4) {
+                            ForEach(downloadManager.skippedSongs, id: \.title) { song in
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.orange)
+                                    VStack(alignment: .leading) {
+                                        Text(song.title)
+                                            .font(.caption)
+                                        Text(song.reason)
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 200)
+            }
+            
             Spacer()
         }
         .padding()
@@ -129,7 +162,7 @@ struct DownloadView: View {
                 let songURLs = try await downloadManager.downloadSongList(from: url)
                 if songURLs.isEmpty {
                     await MainActor.run {
-                        alertMessage = "歌曲列表为空"
+                        alertMessage = "没有找到可下载的歌曲（仅支持 HTTPS 链接）"
                         showAlert = true
                     }
                 } else {
