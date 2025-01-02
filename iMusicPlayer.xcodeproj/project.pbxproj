@@ -10,9 +10,22 @@
 		9924A3702CDC3F7700712B4A /* iMusicPlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iMusicPlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		99F53F5F2D265CB90002800D /* Exceptions for "iMusicPlayer" folder in "iMusicPlayer" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 9924A36F2CDC3F7700712B4A /* iMusicPlayer */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		9924A3722CDC3F7700712B4A /* iMusicPlayer */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				99F53F5F2D265CB90002800D /* Exceptions for "iMusicPlayer" folder in "iMusicPlayer" target */,
+			);
 			path = iMusicPlayer;
 			sourceTree = "<group>";
 		};
@@ -255,6 +268,8 @@
 				DEVELOPMENT_TEAM = LL56XJ8ZL2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = iMusicPlayer/Info.plist;
+				INFOPLIST_KEY_NSFileProviderDomainUsageDescription = "需要访问您的音乐库来播放音乐";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -284,6 +299,8 @@
 				DEVELOPMENT_TEAM = LL56XJ8ZL2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = iMusicPlayer/Info.plist;
+				INFOPLIST_KEY_NSFileProviderDomainUsageDescription = "需要访问您的音乐库来播放音乐";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
