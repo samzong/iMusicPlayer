@@ -6,5 +6,25 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>需要访问您的音乐库来播放音乐</string>
+	<key>kTCCServiceMediaLibrary</key>
+	<string>需要访问媒体库来播放音乐</string>
+	
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>spg51at9y.hd-bkt.clouddn.com</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>

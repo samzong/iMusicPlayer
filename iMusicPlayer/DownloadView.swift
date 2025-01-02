@@ -8,98 +8,138 @@
 import SwiftUI
 
 struct DownloadView: View {
-    @State private var txtURL: String = ""
-    @State private var isLoading: Bool = false
+    @ObservedObject private var downloadManager = DownloadManager.shared
+    @State private var listURL: String = ""
+    @State private var showAlert = false
+    @State private var alertMessage = ""
+    @Environment(\.dismiss) private var dismiss
+    
+    // 示例URL
+    private let exampleURL = "https://img.samzong.me/music.txt"
     
     var body: some View {
         VStack(spacing: 20) {
-            TextField("请输入在线 TXT 文件地址", text: $txtURL)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding()
-            
-            HStack(spacing: 40) {
-                Button("立即下载") {
-                    fetchSongList(from: txtURL)
-                }
-                .disabled(isLoading)
+            // URL 输入
+            VStack(alignment: .leading, spacing: 8) {
+                TextField("输入歌曲列表URL (.txt)", text: $listURL)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
                 
-                Button("后台下载") {
-                    // 实现后台下载逻辑
+                // 示例下载按钮
+                Button(action: {
+                    listURL = exampleURL
+                    startDownload()
+                }) {
+                    HStack {
+                        Image(systemName: "doc.text.fill")
+                        Text("下载示例歌曲")
+                        Text("(\(exampleURL))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
-                .disabled(true) // 初始版本可以禁用
+                .disabled(downloadManager.isDownloading)
             }
-            .padding()
+            
+            // 手动下载按钮
+            Button(action: startDownload) {
+                HStack {
+                    Image(systemName: "arrow.down.circle.fill")
+                    Text(downloadManager.isDownloading ? "下载中..." : "开始下载")
+                }
+            }
+            .disabled(listURL.isEmpty || downloadManager.isDownloading)
+            
+            if downloadManager.isDownloading {
+                VStack(spacing: 10) {
+                    // 进度条
+                    ProgressView(value: downloadManager.currentDownloadProgress) {
+                        HStack {
+                            Text("下载进度")
+                            Spacer()
+                            Text("\(downloadManager.downloadQueue.count) 首歌曲待下载")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    } currentValueLabel: {
+                        Text("\(Int(downloadManager.currentDownloadProgress * 100))%")
+                    }
+                    
+                    // 当前下载文件名
+                    if !downloadManager.currentDownloadingTitle.isEmpty {
+                        Text("正在下载: \(downloadManager.currentDownloadingTitle)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    // 取消按钮
+                    Button("取消下载") {
+                        downloadManager.cancelDownload()
+                    }
+                    .foregroundColor(.red)
+                }
+                .padding()
+            }
+            
+            // 剩余队列
+            if !downloadManager.downloadQueue.isEmpty {
+                VStack(alignment: .leading) {
+                    HStack {
+                        Text("待下载文件:")
+                            .font(.headline)
+                        Spacer()
+                        Text("\(downloadManager.downloadQueue.count) 首")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 4) {
+                            ForEach(downloadManager.downloadQueue, id: \.self) { url in
+                                Text(url.lastPathComponent)
+                                    .font(.caption)
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 200)
+            }
             
             Spacer()
         }
         .padding()
+        .alert("下载提示", isPresented: $showAlert) {
+            Button("确定", role: .cancel) { }
+        } message: {
+            Text(alertMessage)
+        }
     }
     
-    func fetchSongList(from urlString: String) {
-        guard let url = URL(string: urlString) else {
-            print("无效的 URL")
+    private func startDownload() {
+        guard let url = URL(string: listURL) else {
+            alertMessage = "无效的URL"
+            showAlert = true
             return
         }
         
-        isLoading = true // 禁用按钮，显示加载状态
-        
-        URLSession.shared.dataTask(with: url) { data, response, error in
-            DispatchQueue.main.async {
-                self.isLoading = false // 恢复按钮可用状态
-            }
-            
-            if let error = error {
-                print("下载 TXT 文件出错：\(error)")
-                return
-            }
-            
-            guard let data = data, let content = String(data: data, encoding: .utf8) else {
-                print("无法解析 TXT 文件内容")
-                return
-            }
-            
-            let lines = content.components(separatedBy: .newlines)
-            for line in lines {
-                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmedLine.isEmpty, let songURL = URL(string: trimmedLine) {
-                    self.downloadSong(from: songURL)
-                }
-            }
-        }.resume()
-    }
-    
-    func downloadSong(from songURL: URL) {
-        let fileName = songURL.lastPathComponent
-        let destinationURL = SongManager.shared.getDocumentsDirectory().appendingPathComponent(fileName)
-        
-        // 检查文件是否已存在
-        if FileManager.default.fileExists(atPath: destinationURL.path) {
-            print("\(fileName) 已存在，跳过下载")
-            return
-        }
-        
-        let task = URLSession.shared.downloadTask(with: songURL) { tempURL, response, error in
-            if let error = error {
-                print("下载歌曲出错：\(error)")
-                return
-            }
-            
-            guard let tempURL = tempURL else {
-                print("临时文件 URL 不存在")
-                return
-            }
-            
+        // 开始下载歌曲列表
+        Task {
             do {
-                try FileManager.default.moveItem(at: tempURL, to: destinationURL)
-                DispatchQueue.main.async {
-                    let newSong = Song(title: fileName, url: destinationURL)
-                    SongManager.shared.addSong(newSong)
+                let songURLs = try await downloadManager.downloadSongList(from: url)
+                if songURLs.isEmpty {
+                    await MainActor.run {
+                        alertMessage = "歌曲列表为空"
+                        showAlert = true
+                    }
+                } else {
+                    downloadManager.startBatchDownload(urls: songURLs)
                 }
-                print("\(fileName) 下载完成")
             } catch {
-                print("保存歌曲出错：\(error)")
+                await MainActor.run {
+                    alertMessage = "下载歌曲列表失败: \(error.localizedDescription)"
+                    showAlert = true
+                }
             }
         }
-        task.resume()
     }
 }
