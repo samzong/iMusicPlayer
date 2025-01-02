@@ -14,8 +14,8 @@ struct DownloadView: View {
     @State private var alertMessage = ""
     @Environment(\.dismiss) private var dismiss
     
-    // 示例URL
-    private let exampleURL = "https://img.samzong.me/music.txt"
+    // 示例URL（隐藏实际地址）
+    private let exampleURL = "https://img.samzong.me/m.txt"
     
     var body: some View {
         VStack(spacing: 20) {
@@ -26,30 +26,31 @@ struct DownloadView: View {
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
                 
-                // 示例下载按钮
-                Button(action: {
-                    listURL = exampleURL
-                    startDownload()
-                }) {
-                    HStack {
-                        Image(systemName: "doc.text.fill")
-                        Text("下载示例歌曲")
-                        Text("(\(exampleURL))")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                HStack(spacing: 20) {
+                    // 示例下载按钮
+                    Button(action: {
+                        listURL = exampleURL
+                        startDownload()
+                    }) {
+                        HStack {
+                            Image(systemName: "music.note.list")
+                            Text("下载示例歌曲")
+                        }
+                    }
+                    .disabled(downloadManager.isDownloading)
+                    
+                    // 手动下载按钮
+                    if !listURL.isEmpty {
+                        Button(action: startDownload) {
+                            HStack {
+                                Image(systemName: "arrow.down.circle.fill")
+                                Text(downloadManager.isDownloading ? "下载中..." : "开始下载")
+                            }
+                        }
+                        .disabled(downloadManager.isDownloading)
                     }
                 }
-                .disabled(downloadManager.isDownloading)
             }
-            
-            // 手动下载按钮
-            Button(action: startDownload) {
-                HStack {
-                    Image(systemName: "arrow.down.circle.fill")
-                    Text(downloadManager.isDownloading ? "下载中..." : "开始下载")
-                }
-            }
-            .disabled(listURL.isEmpty || downloadManager.isDownloading)
             
             if downloadManager.isDownloading {
                 VStack(spacing: 10) {

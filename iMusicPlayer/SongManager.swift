@@ -44,6 +44,19 @@ class SongManager: ObservableObject {
         }
     }
     
+    func deleteSong(_ song: Song) {
+        do {
+            // 从文件系统删除文件
+            try FileManager.default.removeItem(at: song.url)
+            // 从列表中移除
+            if let index = songs.firstIndex(of: song) {
+                songs.remove(at: index)
+            }
+        } catch {
+            print("删除歌曲失败：\(error)")
+        }
+    }
+    
     func getDocumentsDirectory() -> URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
