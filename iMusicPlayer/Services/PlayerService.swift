@@ -208,7 +208,7 @@ class PlayerService: ObservableObject {
     }
     
     private func setupPlayer(with url: URL) {
-        let asset = AVAsset(url: url)
+        let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset, automaticallyLoadedAssetKeys: ["playable", "duration"])
         playerItem.preferredForwardBufferDuration = 10
         
